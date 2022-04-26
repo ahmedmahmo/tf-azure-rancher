@@ -1,0 +1,41 @@
+#! /bin/bash
+
+
+echo "Starting setup!"
+sudo mkdir -p init-logs
+touch /init-logs/exec.log
+exec 3>&1 1>>"/init-logs/exec.log" 2>&1
+
+sudo apt update -y && sudo apt upgrade -y
+sudo apt-get update && sudo apt-get install -y \
+		apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    wget \
+    unzip \
+    jq \
+    lsb-release
+
+sudo apt install -y docker.io
+sudo cat <<EOF > /etc/docker/daemon.json
+{
+"exec-opts": ["native.cgroupdriver=systemd"]
+}
+EOF
+sudo systemctl start docker
+sudo systemctl enable docker
+
+sudo touch /etc/docker/daemon.json
+sudo chown "$USER":"$USER" /etc/docker/daemon.json -R
+sudo chmod g+rwx /etc/docker/daemon.json
+
+sudo usermod -aG docker $USER
+sudo systemctl restart docker
+sudo systemctl enable docker.service
+
+
+sudo swapoff -a && sudo sed -i '/ swap / s/^\\(.*\\)$/#\\1/g' /etc/fstab
+sudo echo "/dev/sdb1 /var/lib/docker ext4 defaults 0 2" >> /etc/fstab
+
+echo "Machine is setup!"
